@@ -1,41 +1,68 @@
-import aiger
-from pysat.solvers import Minisat22
-from aiger_cnf import aig2cnf
+import os
 
-from Aiger2Model import aiger_to_cnf
-def load_aiger_and_check(file_path):
-    # 载入 AIGER 文件
-    aig = aiger.load(file_path)
-    print(aig)
-    # 使用 py-aiger 提供的接口转换为CNF
-    cnf = aig2cnf(aig)
 
-    # 初始化 SAT 求解器
-    solver = Minisat22()
+from Aiger2Model import parse_aiger, aiger_to_cnf, cnf_to_string, write_cnf_file
 
-    # 添加 CNF 公式到 SAT 求解器
-    for clause in cnf.clauses:
-        solver.add_clause(clause)
 
-    # AIGER文件中最后的输出变量通常是我们关注的属性，检查是否可满足
-    output_var = cnf.outputs[0][1]  # 获取输出变量对应的CNF变量编号
 
-    # 检查该输出是否可能为 True
-    # 我们添加该变量为正的假设，看看是否有解
-    result = solver.solve(assumptions=[output_var])
+input_folder = "aiger-safety-properties"  # 存放 AIGER 文件的文件夹
+output_file = "test_results.txt"  # 用于保存测试结果的文件
 
-    # 清理并关闭求解器
-    solver.delete()
+def solve_sat(cnf_clauses):
+    from pysat.solvers import Minisat22
+    
+    with Minisat22() as solver:
+        for clause in cnf_clauses:
+            solver.add_clause(clause)
+        return solver.solve()
 
-    return result
+
+def list_files_recursive(folder):
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            yield file_path
+def main():
+
+    # 遍历文件夹中的所有文件
+    with open(output_file, 'w') as f_out:
+        for file_name in list_files_recursive(input_folder):
+            if file_name.endswith(".aag"):
+                with open(file_name,'r') as f_in:
+                    lines = f_in.readlines()
+                try:
+                    num_inputs, num_latches, inputs, outputs, latches, and_gates = parse_aiger(lines)
+                except Exception as e:
+                    print(e)
+                    continue
+
+                cnf_clauses = aiger_to_cnf(num_inputs, num_latches, inputs, outputs, latches, and_gates)
+                cnf_string = cnf_to_string(cnf_clauses)
+                cnf_file_path = file_name.replace(".aag", ".cnf").replace("aiger-safety-properties", "cnf-files")
+                write_cnf_file(cnf_string, cnf_file_path)
+                print(f"Solving {cnf_file_path}...")
+                
+                try:
+                    return_code = solve_sat(cnf_clauses)
+                except Exception as e:
+                    print(f"Error occurred while solving {file_name}: {e}")
+                    return_code = None
+                print(  f"{file_name}: {return_code}")
+                print(lines[-1])
+                if "UNSATISFIABLE" in lines[-1]:
+                    satisfiable = False
+                elif "SATISFIABLE" in lines[-1]:
+                    satisfiable = True
+                else:
+                    satisfiable = None
+                if satisfiable == return_code:
+                    f_out.write(f"{file_name}: test OK\n")
+                elif satisfiable is not None and return_code is not None:
+                    f_out.write(f"{file_name}: test Failed\n")
+                else:    
+                    f_out.write(f"{file_name}: UNKNOWN\n")
+
 
 if __name__ == "__main__":
-    # 测试我们的函数
-    file_path = './aiger-safety-properties/traffic-light/traffic-light-cycle-prescale-bits-0.aag'  # 替换为你的 AIGER 文件路径
-    unsafe_possible = load_aiger_and_check(file_path)
-
-    if unsafe_possible:
-        print("系统可能进入不安全状态！")
-    else:
-        print("系统不会进入不安全状态。")
+    main()
 

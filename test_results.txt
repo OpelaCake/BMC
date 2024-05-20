@@ -1,0 +1,16 @@
+aiger-safety-properties/trivial/false.aag: UNKNOWN
+aiger-safety-properties/trivial/buffer.aag: test OK
+aiger-safety-properties/trivial/true.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n4-12.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n4-04.aag: test OK
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n3-08.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n4-02.aag: test OK
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n4-16.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n3-12.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n3-04.aag: test OK
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n4-08.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n3-16.aag: UNKNOWN
+aiger-safety-properties/fermats-last-theorem/fermats-last-theorem-stateless-n3-02.aag: test OK
+aiger-safety-properties/prime/prime-2147483647-stateless.aag: UNKNOWN
+aiger-safety-properties/prime/prime-20996011-stateless.aag: UNKNOWN
+aiger-safety-properties/prime/prime-65537-stateless.aag: test OK
