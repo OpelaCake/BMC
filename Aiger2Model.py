@@ -2,7 +2,7 @@
 import os
 
 # for test
-file_path = "./aiger-safety-properties/trivial/shift-10101010.aag"
+file_path = "./aiger-safety-properties/tic-tac-toe/tic-tac-toe-3x3-at-most-one-winner.aag"
 def parse_aiger(lines):
     inputs = []
     outputs = []
@@ -22,7 +22,7 @@ def parse_aiger(lines):
             num_latches = int(num_latches)
             num_outputs = int(num_outputs)
             and_num = int(and_num)
-            if num_latches != 0: raise Exception('Aiger file should not have latches')
+            if num_latches != 0: print("Warning: aiger file has latches, apply K-Extend")
             continue
 
         if line.startswith('c'):
@@ -31,21 +31,21 @@ def parse_aiger(lines):
     
         if input_recorded_num < num_inputs:
             if input_recorded_num==0: print('inputs:')
-            print(line)
+            #print(line)
             input_name = line.strip()
             inputs.append([input_name])
             input_recorded_num += 1
             
         elif latch_recorded_num < num_latches:
             if latch_recorded_num==0: print('latches:')
-            print(line)
+            #print(line)
             latch_a, latch_b = line.strip().split()
             latches.append([latch_a, latch_b])
             latch_recorded_num += 1
 
         elif output_recorded_num < num_outputs:
             if output_recorded_num==0: print('outputs:')
-            print(line)
+            #print(line)
             output_name = line.strip()
             outputs.append([output_name])
             output_recorded_num += 1
@@ -53,7 +53,7 @@ def parse_aiger(lines):
         else:# AND门
             if and_recorded_num < and_num:
                 if and_recorded_num==0: print('and_gates:')
-                print(line)
+                #print(line)
                 tokens = line.split()
                 if len(tokens) == 3:
                     a,b,c = tokens
@@ -65,70 +65,50 @@ def parse_aiger(lines):
     return num_inputs, num_latches, inputs, outputs, latches, and_gates
 
 
-def aiger_to_cnf(num_inputs, num_latches, inputs, outputs, latches, and_gates):
+def aiger_to_cnf(num_inputs, num_latches, inputs, outputs, latches, and_gates, K=5):
     cnf_clauses = []
-    # how?
-    # for latch_a, latch_b in latches:
-    #     # 转换 latch 变量的值和否定值为整数
-    #     latch_var = int(latch_a)  # 当前周期的值
-    #     latch_next_var = int(latch_b)  # 下一个周期的值
+    for t in range(K):
+        # 处理锁存器
+        for latch_a, latch_b in latches:
+            latch_a, latch_b = int(latch_a), int(latch_b)
+            latch_var = int(latch_a) // 2 + num_inputs + t * num_latches
+            if latch_b % 2 == 1:
+                latch_next_var = -(int(latch_b) // 2 + num_inputs + (t + 1) * num_latches)
+            else:
+                latch_next_var = int(latch_b) // 2 + num_inputs + (t + 1) * num_latches
+            if latch_a % 2 == 1:
+                latch_var = -latch_var
+            cnf_clauses.append([-latch_var, latch_next_var])
 
-    #     # 处理 latch_next_var 的否定情况
-    #     if latch_next_var % 2 == 1:  # 如果是奇数，表示否定
-    #         latch_next_var = -(latch_next_var // 2)
-    #     else:  # 如果是偶数，表示正常值
-    #         latch_next_var = latch_next_var // 2
+        # 处理输出
+        for output in outputs:
+            output_var = int(output[0]) // 2 + num_inputs + t * num_latches
+            if int(output[0]) % 2 == 1:
+                output_var = -output_var
+            cnf_clauses.append([output_var])
 
-    #     if latch_var % 2 == 1:  # 如果是奇数，表示否定
-    #         latch_var = -(latch_var // 2)
-    #     else:  # 如果是偶数，表示正常值
-    #         latch_var = latch_var // 2
+        # 处理AND门逻辑
+        for a, (b, c) in and_gates:
+            a = int(a) + num_inputs + t * num_latches
+            b = int(b) + num_inputs + t * num_latches
+            c = int(c) + num_inputs + t * num_latches
+            if int(a) % 2 == 1:
+                a_var = -a
+            else:
+                a_var = a
+            if int(b) % 2 == 1:
+                b_var = -b
+            else:
+                b_var = b
+            if int(c) % 2 == 1:
+                c_var = -c
+            else:
+                c_var = c
 
-    #     cnf_clauses.append([-latch_var, latch_next_var])
-
-
-
-
-    for output in outputs:
-        output_var = int(output[0])
-        if output_var % 2 == 1:
-            output_var = -(output_var // 2)
-        else: output_var = output_var // 2
-        cnf_clauses.append([output_var])
-
-
-
-
-    for a, (b, c) in and_gates:
-        a = int(a)
-        b = int(b)
-        c = int(c)
-        # 处理 b 和 c 的否定情况
-        if b % 2 == 1:
-            b_var = -(b // 2 )
-        else:
-            b_var = b // 2
-
-        if c % 2 == 1:
-            c_var = -(c // 2)
-        else:
-            c_var = c// 2
-
-        if a % 2 == 1:
-            a_var = -(a // 2)
-        else:
-            a_var = a// 2
-
-        # 添加 CNF 子句
-        # ¬a ∨ b
-        cnf_clauses.append([-a_var, b_var])
-        # ¬a ∨ c
-        cnf_clauses.append([-a_var, c_var])
-        # ¬b ∨ ¬c ∨ a
-        cnf_clauses.append([-b_var, -c_var, a_var])
-
-
-
+            # 添加 CNF 子句
+            cnf_clauses.append([-a_var, b_var])
+            cnf_clauses.append([-a_var, c_var])
+            cnf_clauses.append([-b_var, -c_var, a_var])
 
     return cnf_clauses
 
@@ -161,7 +141,7 @@ if __name__ == "__main__":
     with open(file_path, 'r') as file:
         lines = file.readlines()
     num_inputs, num_latches, inputs, outputs, latches, and_gates = parse_aiger(lines)
-    cnf_clauses = aiger_to_cnf(num_inputs, num_latches, inputs, outputs, latches, and_gates)
+    cnf_clauses = aiger_to_cnf(num_inputs, num_latches, inputs, outputs, latches, and_gates, K=100)
     cnf_string = cnf_to_string(cnf_clauses)
     print(cnf_string)
     print(file_path)
